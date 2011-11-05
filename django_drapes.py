@@ -236,12 +236,8 @@ def render_with(template_name):
         if response_dict.has_key('template'):
             real_template_name = response_dict['template']
         if real_template_name == 'json' or is_json(args[0]):
-            try:
-                return HttpResponse(json.dumps(response_dict),
-                                    'application/javascript')
-            except TypeError, te:
-                if 'is not JSON serializable' not in te.message:
-                    raise
+            return HttpResponse(json.dumps(response_dict),
+                                'application/javascript')
         return render(args[0],
                       real_template_name,
                       response_dict)
@@ -317,7 +313,10 @@ class ModelViewNode(Node):
         model = self.model.resolve(context)
         view_class = VIEW_REGISTER[model.__class__]
         view = view_class(model)
-        return getattr(view, self.viewname)()
+        view_thing = getattr(view, self.viewname)
+        if callable(view_thing):
+            return view_thing()
+        return view_thing
 
 def modelview(parser, token):
     """
