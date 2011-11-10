@@ -230,14 +230,14 @@ def render_with(template_name):
     @decorator
     def replacement_func(view_func, *args, **kwargs):
         response_dict = view_func(*args, **kwargs)
-        if not isinstance(response_dict, dict):
-            return response_dict
         real_template_name = template_name
-        if response_dict.has_key('template'):
+        if hasattr(response_dict, 'has_key') and response_dict.has_key('template'):
             real_template_name = response_dict['template']
         if real_template_name == 'json' or is_json(args[0]):
             return HttpResponse(json.dumps(response_dict),
                                 'application/javascript')
+        if not isinstance(response_dict, dict):
+            return response_dict
         return render(args[0],
                       real_template_name,
                       response_dict)

@@ -498,7 +498,8 @@ class RenderWithTests(unittest.TestCase):
         @render_with('')
         def controller(request):
             return response
-        self.failUnlessEqual(controller(None), response)
+        self.failUnlessEqual(controller(Bunch(method='GET',GET=dict())),
+                             response)
 
 
     def test_template_returned(self):
@@ -542,6 +543,26 @@ class RenderWithTests(unittest.TestCase):
         self.failUnless(json_response['test'])
         self.failUnlessEqual(http_response.response_type,
                              'application/javascript')
+
+
+    def test_render_nondict_with_json(self):
+        @render_with('json')
+        def controller(request):
+            return [1,2,3]
+        http_response = controller(None)
+        json_response = json.loads(http_response.response)
+        self.failUnless(json_response, [1,2,3])
+        self.failUnlessEqual(http_response.response_type,
+                             'application/javascript')
+
+
+    def test_render_template_in_dict_with_json(self):
+        @render_with('json')
+        def controller(request):
+            return dict(template='not_test.htm')
+        self.failUnlessEqual(controller(Bunch(method='GET',GET=dict())),
+                             "not_test.htm:1")
+
 
 class ModelViewTests(unittest.TestCase):
 
