@@ -158,7 +158,9 @@ def verify(**conversions):
         if _is_view_func(view_func):
             request = args[0]
             if request.method == "GET":
-                args_dict.update(dict(request.GET))
+                #we have to do this because get params are passed on as a list
+                flattened = ((key,val[0]) for key,val in request.GET.iteritems())
+                args_dict.update(dict(flattened))
 
         validated_args_dict = dict()
         errors = []
