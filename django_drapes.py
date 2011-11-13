@@ -152,14 +152,14 @@ def verify(**conversions):
         return argval
 
     @decorator
-    def deco(view_func, *args, **kwargs):
-        args_dict = _build_args_dict(view_func, *args, **kwargs)
+    def deco(view_func, *deco_args, **deco_kwargs):
+        args_dict = _build_args_dict(view_func, *deco_args, **deco_kwargs)
 
         if _is_view_func(view_func):
-            request = args[0]
+            request = deco_args[0]
             if request.method == "GET":
                 #we have to do this because get params are passed on as a list
-                flattened = ((key,val[0]) for key,val in request.GET.iteritems())
+                flattened = ((key,val) for key,val in request.GET.iteritems())
                 args_dict.update(dict(flattened))
 
         validated_args_dict = dict()

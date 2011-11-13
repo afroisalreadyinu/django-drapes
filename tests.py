@@ -261,7 +261,7 @@ class VerifyTests(unittest.TestCase):
             return get_param
         class MockGetRequest(object):
             method = 'GET'
-            GET = dict(get_param=['Battle Cat'])
+            GET = dict(get_param='Battle Cat')
         self.failUnlessEqual(controller(MockGetRequest(), None),
                              'Battle Cat')
 
@@ -282,7 +282,7 @@ class VerifyTests(unittest.TestCase):
 
         class MockGetRequest(object):
             method = 'GET'
-            GET = {'some_arg':['duncan@grayskull.com']}
+            GET = {'some_arg':'duncan@grayskull.com'}
 
         @verify(other_arg=formencode.validators.Int(),
                 some_arg=formencode.validators.Email())
