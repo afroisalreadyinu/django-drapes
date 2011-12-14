@@ -152,13 +152,15 @@ def verify(**conversions):
         return argval
 
     @decorator
-    def deco(view_func, *args, **kwargs):
-        args_dict = _build_args_dict(view_func, *args, **kwargs)
+    def deco(view_func, *deco_args, **deco_kwargs):
+        args_dict = _build_args_dict(view_func, *deco_args, **deco_kwargs)
 
         if _is_view_func(view_func):
-            request = args[0]
+            request = deco_args[0]
             if request.method == "GET":
-                args_dict.update(dict(request.GET))
+                #we have to do this because get params are passed on as a list
+                flattened = ((key,val) for key,val in request.GET.iteritems())
+                args_dict.update(dict(flattened))
 
         validated_args_dict = dict()
         errors = []
@@ -230,18 +232,14 @@ def render_with(template_name):
     @decorator
     def replacement_func(view_func, *args, **kwargs):
         response_dict = view_func(*args, **kwargs)
-        if not isinstance(response_dict, dict):
-            return response_dict
         real_template_name = template_name
-        if response_dict.has_key('template'):
+        if hasattr(response_dict, 'has_key') and response_dict.has_key('template'):
             real_template_name = response_dict['template']
         if real_template_name == 'json' or is_json(args[0]):
-            try:
-                return HttpResponse(json.dumps(response_dict),
-                                    'application/javascript')
-            except TypeError, te:
-                if 'is not JSON serializable' not in te.message:
-                    raise
+            return HttpResponse(json.dumps(response_dict),
+                                'application/javascript')
+        if not isinstance(response_dict, dict):
+            return response_dict
         return render(args[0],
                       real_template_name,
                       response_dict)
@@ -317,7 +315,10 @@ class ModelViewNode(Node):
         model = self.model.resolve(context)
         view_class = VIEW_REGISTER[model.__class__]
         view = view_class(model)
-        return getattr(view, self.viewname)()
+        view_thing = getattr(view, self.viewname)
+        if callable(view_thing):
+            return view_thing()
+        return view_thing
 
 def modelview(parser, token):
     """

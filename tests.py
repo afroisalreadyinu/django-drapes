@@ -498,7 +498,8 @@ class RenderWithTests(unittest.TestCase):
         @render_with('')
         def controller(request):
             return response
-        self.failUnlessEqual(controller(None), response)
+        self.failUnlessEqual(controller(Bunch(method='GET',GET=dict())),
+                             response)
 
 
     def test_template_returned(self):
@@ -543,12 +544,32 @@ class RenderWithTests(unittest.TestCase):
         self.failUnlessEqual(http_response.response_type,
                              'application/javascript')
 
+
+    def test_render_nondict_with_json(self):
+        @render_with('json')
+        def controller(request):
+            return [1,2,3]
+        http_response = controller(None)
+        json_response = json.loads(http_response.response)
+        self.failUnless(json_response, [1,2,3])
+        self.failUnlessEqual(http_response.response_type,
+                             'application/javascript')
+
+
+    def test_render_template_in_dict_with_json(self):
+        @render_with('json')
+        def controller(request):
+            return dict(template='not_test.htm')
+        self.failUnlessEqual(controller(Bunch(method='GET',GET=dict())),
+                             "not_test.htm:1")
+
+
 class ModelViewTests(unittest.TestCase):
 
     @patch('django.template.Variable')
     def test_model_view_node(self, Variable):
         parser = Mock()
-        token = Mock(methods=['split_contents'])
+        token = Mock(spec=['split_contents'])
         token.split_contents.return_value = ('model_view', 'model_inst', 'some_view')
         node = modelview(parser, token)
         self.failUnlessEqual(node.model, Variable.return_value)
@@ -556,7 +577,7 @@ class ModelViewTests(unittest.TestCase):
 
 
     @patch('django.template.Variable')
-    def test_model_view_rendering(self, Variable):
+    def test_model_view_rendering_callable(self, Variable):
         class MockModel(object):
             pass
         class MockModelView(ModelView):
@@ -571,9 +592,30 @@ class ModelViewTests(unittest.TestCase):
         self.failUnlessEqual(node.render(context),
                              'Output of some view')
 
+
+    @patch('django.template.Variable')
+    def test_model_view_rendering_attribute(self, Variable):
+        class MockModel(object):
+            pass
+        class MockModelView(ModelView):
+            model = MockModel
+
+            @property
+            def some_view(self):
+                return "Output of some view"
+
+        template_model = Mock()
+        template_model.resolve.return_value = MockModel()
+        Variable.return_value = template_model
+        node = ModelViewNode('instance', 'some_view')
+        context = Mock()
+        self.failUnlessEqual(node.render(context),
+                             'Output of some view')
+
+
     def test_args_list_length(self):
         parser = Mock()
-        token = Mock(methods=['split_contents'])
+        token = Mock(spec=['split_contents'])
         token.split_contents.return_value = ('model_view', 'model_inst')
         self.failUnlessRaises(TemplateSyntaxError,
                               modelview, parser, token)
@@ -588,7 +630,7 @@ class ModelPermissionTests(unittest.TestCase):
     @patch('django.template.Variable')
     def test_model_permission_node(self, Variable):
         parser = Mock()
-        token = Mock(methods=['split_contents'])
+        token = Mock(spec=['split_contents'])
         token.split_contents.return_value = ('if_allowed', 'user', 'some_perm', 'model_inst')
         node = model_permission(parser, token)
         self.failUnlessEqual(node.model_instance, Variable.return_value)
@@ -597,7 +639,7 @@ class ModelPermissionTests(unittest.TestCase):
 
     def test_args_list_length(self):
         parser = Mock()
-        token = Mock(methods=['split_contents'])
+        token = Mock(spec=['split_contents'])
         token.split_contents.return_value = ('if_allowed', 'user', 'some_perm')
         self.failUnlessRaises(TemplateSyntaxError,
                               model_permission, parser, token)
@@ -614,10 +656,10 @@ class ModelPermissionTests(unittest.TestCase):
             def can_do_stuff(self, user):
                 return user.username == "Some username"
 
-        user_var = Mock(methods=['resolve'])
+        user_var = Mock(spec=['resolve'])
         user_var.resolve.return_value = MockUser()
 
-        model_var = Mock(methods=['resolve'])
+        model_var = Mock(spec=['resolve'])
         model_var.resolve.return_value = MockModel()
 
         variables = [model_var, user_var]
@@ -646,10 +688,10 @@ class ModelPermissionTests(unittest.TestCase):
             def can_do_stuff(self, user):
                 return user.username != "Some username"
 
-        user_var = Mock(methods=['resolve'])
+        user_var = Mock(spec=['resolve'])
         user_var.resolve.return_value = MockUser()
 
-        model_var = Mock(methods=['resolve'])
+        model_var = Mock(spec=['resolve'])
         model_var.resolve.return_value = MockModel()
 
         variables = [model_var, user_var]
