@@ -4,7 +4,7 @@ import formencode
 from mock import Mock, patch
 
 from django.template import TemplateSyntaxError
-
+from django.http import HttpResponseRedirect
 from django_drapes import (require,
                            verify,
                            verify_post,
@@ -484,8 +484,11 @@ class RenderWithTests(unittest.TestCase):
     def setUp(self):
         import django_drapes
         def render(request, template_name, response_dict):
-            return "%s:%d" % (template_name,
-                              len(response_dict))
+            try:
+                return "%s:%d" % (template_name,
+                                  len(response_dict))
+            except TypeError:
+                return response_dict.__class__
         django_drapes.render = render
         class DummyResponse(object):
             def __init__(self, response, response_type):
@@ -493,13 +496,13 @@ class RenderWithTests(unittest.TestCase):
                 self.response_type = response_type
         django_drapes.HttpResponse = DummyResponse
 
-    def test_non_dict_returned(self):
-        response = object()
+    def test_http_response_returned(self):
+        response = HttpResponseRedirect('/')
         @render_with('')
         def controller(request):
             return response
         self.failUnlessEqual(controller(Bunch(method='GET',GET=dict())),
-                             response)
+                             response.__class__)
 
 
     def test_template_returned(self):
