@@ -38,12 +38,15 @@ class ModelValidator(formencode.FancyValidator):
         super(ModelValidator, self).__init__(*args, **kwargs)
         self.model = model
         self.get_by = get_by
-
+        self.filters = {}
 
     def _to_python(self, value, state):
         #TODO if it's an id field or something integery make it an
         #integer
-        kwargs = {self.get_by:value}
+        if self.filters:
+            kwargs = self.filters
+        else:
+            kwargs = {self.get_by:value}
         rows = self.model.objects.filter(**kwargs)
         if len(rows) == 0:
             raise formencode.Invalid(self.message('no_instance', state),
@@ -52,6 +55,12 @@ class ModelValidator(formencode.FancyValidator):
             raise formencode.Invalid(self.message('multiple_instances', state),
                                      value, state)
         return rows[0]
+
+    def add_context(self, context):
+        if not isinstance(self.get_by, basestring):
+            for pair in self.get_by:
+                filter_name, arg_name = pair.split('=')
+                self.filters[filter_name] = context[arg_name]
 
 
 def _build_args_dict(function, *args, **kwargs):
@@ -145,11 +154,13 @@ def verify(**conversions):
     to be called 'request'.
     """
 
-    def _validate(argname, argval):
+    def _validate(argname, all_args):
         if conversions.has_key(argname):
             validator = conversions[argname]
-            return validator.to_python(argval)
-        return argval
+            if hasattr(validator, 'add_context'):
+                validator.add_context(all_args)
+            return validator.to_python(all_args[argname])
+        return all_args[argname]
 
     @decorator
     def deco(view_func, *deco_args, **deco_kwargs):
@@ -159,15 +170,16 @@ def verify(**conversions):
             request = deco_args[0]
             if request.method == "GET":
                 #we have to do this because get params are passed on as a list
-                flattened = ((key,val) for key,val in request.GET.iteritems())
+                flattened = ((key,val) for key,val in request.GET.iteritems()
+                             if key != 'json')
                 args_dict.update(dict(flattened))
 
         validated_args_dict = dict()
         errors = []
-        for argument_name, value in args_dict.iteritems():
+        for argument_name in args_dict:
             try:
                 validated_args_dict[argument_name] = _validate(argument_name,
-                                                                    value)
+                                                               args_dict)
             except formencode.Invalid, f:
                 errors.append(f)
         if len(errors) == 1:
@@ -377,3 +389,8 @@ def model_permission(parser, token):
 
     return ModelPermissionNode(bits[1],bits[2],bits[3],
                                nodelist_true, nodelist_false)
+
+
+# TODO:
+# -test json as argument from verify or require
+# -add tests for add_context
