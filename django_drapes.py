@@ -280,24 +280,28 @@ class ModelAttributeMixin(object):
                               attr_name))
 
 
-VIEW_REGISTER = {}
-
 class ModelViewMeta(type):
 
     def __init__(cls, name, bases, dct):
         super(ModelViewMeta, cls).__init__(name, bases, dct)
         if 'model' in dct and dct['model']:
-            VIEW_REGISTER[dct['model']] = cls
+            ModelView.VIEW_REGISTER[dct['model']] = cls
 
 
 class ModelView(ModelAttributeMixin):
 
     __metaclass__ = ModelViewMeta
     model = None
+    VIEW_REGISTER = {}
 
     def __init__(self, obj):
         self.obj = obj
 
+    @classmethod
+    def get_for_model(cls, model):
+        view_class = cls.VIEW_REGISTER[model.__class__]
+        view = view_class(model)
+        return view
 
 PERMISSION_REGISTER = {}
 
@@ -325,8 +329,7 @@ class ModelViewNode(Node):
 
     def render(self, context):
         model = self.model.resolve(context)
-        view_class = VIEW_REGISTER[model.__class__]
-        view = view_class(model)
+        view = ModelView.get_for_model(model)
         view_thing = getattr(view, self.viewname)
         if callable(view_thing):
             return view_thing()
@@ -341,6 +344,10 @@ def modelview(parser, token):
     if len(bits) != 3:
         raise TemplateSyntaxError, "'%s' tag requires two arguments" % bits[0]
     return ModelViewNode(bits[1],bits[2])
+
+
+def v(model_instance):
+    return ModelView.get_for_model(model_instance)
 
 
 class ModelPermissionNode(Node):

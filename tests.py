@@ -2,6 +2,7 @@ import unittest
 import json
 import formencode
 from mock import Mock, patch
+import os
 
 from django.template import TemplateSyntaxError
 from django.http import HttpResponseRedirect
@@ -22,7 +23,8 @@ from django_drapes import (require,
                            ModelPermissionNode,
                            model_permission,
                            render_with,
-                           is_json)
+                           is_json,
+                           v)
 
 class Bunch(dict):
 
@@ -569,6 +571,27 @@ class RenderWithTests(unittest.TestCase):
 
 class ModelViewTests(unittest.TestCase):
 
+    def test_model_view_get_for_model(self):
+        class MockModel(Bunch):
+            pass
+
+        class MockModelView(ModelView):
+            model = MockModel
+
+        self.failUnlessEqual(type(ModelView.get_for_model(MockModel())),
+                             MockModelView)
+
+    def test_model_view_v_function(self):
+        class MockModel(Bunch):
+            pass
+
+        class MockModelView(ModelView):
+            model = MockModel
+
+        self.failUnlessEqual(v(MockModel(message='haha')).message,
+                             'haha')
+
+
     @patch('django.template.Variable')
     def test_model_view_node(self, Variable):
         parser = Mock()
@@ -709,3 +732,6 @@ class ModelPermissionTests(unittest.TestCase):
         context = Mock()
         self.failUnlessEqual(node.render(context),
                              'False nodelist')
+
+if __name__ == "__main__":
+    os.popen("nosetests tests.py --with-coverage --cover-package=django_drapes --cover-html")
