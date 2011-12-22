@@ -321,6 +321,8 @@ class ModelPermission(ModelAttributeMixin):
     def __init__(self, obj):
         self.obj = obj
 
+class NoSuchView(Exception):
+    pass
 
 class ModelViewNode(Node):
     def __init__(self, model, viewname):
@@ -330,7 +332,10 @@ class ModelViewNode(Node):
     def render(self, context):
         model = self.model.resolve(context)
         view = ModelView.get_for_model(model)
-        view_thing = getattr(view, self.viewname)
+        try:
+            view_thing = getattr(view, self.viewname)
+        except AttributeError:
+            raise NoSuchView(self.viewname)
         if callable(view_thing):
             return view_thing()
         return view_thing

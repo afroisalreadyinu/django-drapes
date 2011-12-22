@@ -24,7 +24,8 @@ from django_drapes import (require,
                            model_permission,
                            render_with,
                            is_json,
-                           v)
+                           v,
+                           NoSuchView)
 
 class Bunch(dict):
 
@@ -637,6 +638,23 @@ class ModelViewTests(unittest.TestCase):
         context = Mock()
         self.failUnlessEqual(node.render(context),
                              'Output of some view')
+
+    @patch('django.template.Variable')
+    def test_model_view_node_raises_exception_on_invalid_view_name(self, Variable):
+        class MockModel(object):
+            pass
+        class MockModelView(ModelView):
+            model = MockModel
+            def some_view(self):
+                return "Output of some view"
+        template_model = Mock()
+        template_model.resolve.return_value = MockModel()
+        Variable.return_value = template_model
+        node = ModelViewNode('instance', 'some_other_view')
+        context = Mock()
+        self.failUnlessRaises(NoSuchView,
+                              node.render,
+                              context)
 
 
     def test_args_list_length(self):
