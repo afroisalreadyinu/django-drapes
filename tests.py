@@ -660,13 +660,10 @@ class ModelViewTests(unittest.TestCase):
     def test_args_list_length(self):
         parser = Mock()
         token = Mock(spec=['split_contents'])
-        token.split_contents.return_value = ('model_view', 'model_inst')
+        token.split_contents.return_value = ('model_instance',
+                                             'model_view')
         self.failUnlessRaises(TemplateSyntaxError,
                               modelview, parser, token)
-        token.split_contents.return_value = ('model_view', 'model_inst', 'view_name', 'something_else')
-        self.failUnlessRaises(TemplateSyntaxError,
-                              modelview, parser, token)
-
 
 
 class ModelPermissionTests(unittest.TestCase):
