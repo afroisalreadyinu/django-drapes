@@ -640,7 +640,32 @@ class ModelViewTests(unittest.TestCase):
                              'Output of some view')
 
     @patch('django.template.Variable')
-    def test_model_view_node_raises_exception_on_invalid_view_name(self, Variable):
+    def test_raises_exception_on_invalid_view_name(self, Variable):
+        class MockModel(object):
+            pass
+        class MockModelView(ModelView):
+            model = MockModel
+            def some_view(self):
+                return "Output of some view"
+        template_model = Mock()
+        template_model.resolve.return_value = MockModel()
+        Variable.return_value = template_model
+        node = ModelViewNode('instance', 'some_other_view')
+        context = Mock()
+        self.failUnlessRaises(NoSuchView,
+                              node.render,
+                              context)
+
+    def test_arglist_parsing(self):
+        rest_args = ['one', 'two', 'three="haha"', "four=hehe"]
+        args, kwargs = ModelViewNode.parse_arg_list(rest_args)
+        self.failUnlessEqual(args, ['one', 'two'])
+        self.failUnlessEqual(kwargs, dict(three='"haha"',
+                                          four="hehe"))
+
+
+    @patch('django.template.Variable')
+    def test_passing_args(self, Variable):
         class MockModel(object):
             pass
         class MockModelView(ModelView):

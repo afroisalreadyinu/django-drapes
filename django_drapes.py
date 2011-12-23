@@ -325,7 +325,10 @@ class NoSuchView(Exception):
     pass
 
 class ModelViewNode(Node):
-    def __init__(self, model, viewname):
+    def __init__(self, model, viewname, args=None, kwargs=None):
+        self.args = map(self.parse_arg, args or [])
+        self.kwargs = dict((key, self.parse_arg(value))
+                           for key, value in (kwargs or {}))
         self.model = template.Variable(model)
         self.viewname = viewname
 
@@ -333,12 +336,40 @@ class ModelViewNode(Node):
         model = self.model.resolve(context)
         view = ModelView.get_for_model(model)
         try:
-            view_thing = getattr(view, self.viewname)
+            view_thing = getattr(view,
+                                 self.viewname,
+                                 *map(self.parse_variable, self.args),
+                                 **dict((key, self.parse_variable(value))
+                                        for key, value in self.kwargs))
         except AttributeError:
             raise NoSuchView(self.viewname)
         if callable(view_thing):
             return view_thing()
         return view_thing
+
+    def parse_arg(self, arg):
+        if any(arg.startswith(x) and arg.startswith(x)
+               for x in ['"',"'"]):
+            return arg
+        return template.Variable(arg)
+
+    def parse_variable(self, arg, context):
+        if isinstance(arg, template.Variable):
+            return arg.resolve(context)
+        return arg
+
+    @classmethod
+    def parse_arg_list(cls, rest_args):
+        args = []
+        kwargs = {}
+        for arg_str in rest_args:
+            if '=' in arg_str:
+                keyword, arg = arg_str.split('=')
+                kwargs[keyword] = arg
+            else:
+                args.append(arg_str)
+        return args, kwargs
+
 
 def modelview(parser, token):
     """
@@ -349,8 +380,8 @@ def modelview(parser, token):
     if len(bits) < 3:
         raise TemplateSyntaxError, "'%s' tag requires at least two arguments" % bits[0]
     model, view_name = bits[1:3]
-    rest_args = bits[:3]
-    return ModelViewNode(model, view_name)
+    args, kwargs = ModelViewNode.parse_arg_list(bits[:3])
+    return ModelViewNode(model, view_name, args=args, kwargs=kwargs)
 
 
 def v(model_instance):
