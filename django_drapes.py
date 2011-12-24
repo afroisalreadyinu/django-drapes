@@ -372,15 +372,11 @@ class ModelViewNode(Node):
 
 
 def modelview(parser, token):
-    """
-    Usage:
-    {% modelview model_instance view_name %}
-    """
     bits = token.split_contents()
     if len(bits) < 3:
         raise TemplateSyntaxError, "'%s' tag requires at least two arguments" % bits[0]
     model, view_name = bits[1:3]
-    args, kwargs = ModelViewNode.parse_arg_list(bits[:3])
+    args, kwargs = ModelViewNode.parse_arg_list(bits[3:])
     return ModelViewNode(model, view_name, args=args, kwargs=kwargs)
 
 
