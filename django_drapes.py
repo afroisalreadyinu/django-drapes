@@ -328,35 +328,35 @@ class ModelViewNode(Node):
     def __init__(self, model, viewname, args=None, kwargs=None):
         self.args = map(self.parse_arg, args or [])
         self.kwargs = dict((key, self.parse_arg(value))
-                           for key, value in (kwargs or {}))
+                           for key, value in (kwargs or {}).iteritems())
         self.model = template.Variable(model)
         self.viewname = viewname
 
     def render(self, context):
         model = self.model.resolve(context)
         view = ModelView.get_for_model(model)
+        def parse_variable(arg):
+            return arg if not hasattr(arg, 'resolve') else arg.resolve(context)
+        b = [(key, parse_variable(value)) for key, value in self.kwargs.iteritems()]
         try:
             view_thing = getattr(view,
-                                 self.viewname,
-                                 *map(self.parse_variable, self.args),
-                                 **dict((key, self.parse_variable(value))
-                                        for key, value in self.kwargs))
+                                 self.viewname)
         except AttributeError:
             raise NoSuchView(self.viewname)
         if callable(view_thing):
-            return view_thing()
+            return view_thing(*map(lambda x: parse_variable(x), self.args),
+                               **dict([(key, parse_variable(value))
+                                       for key, value in self.kwargs.iteritems()]))
+        else:
+            assert not (self.args or self.kwargs)
         return view_thing
 
     def parse_arg(self, arg):
         if any(arg.startswith(x) and arg.startswith(x)
                for x in ['"',"'"]):
-            return arg
+            return arg[1:-1]
         return template.Variable(arg)
 
-    def parse_variable(self, arg, context):
-        if isinstance(arg, template.Variable):
-            return arg.resolve(context)
-        return arg
 
     @classmethod
     def parse_arg_list(cls, rest_args):

@@ -482,6 +482,11 @@ class ModelValidatorTests(unittest.TestCase):
                               validator.to_python,
                               'field value')
 
+class DummyResponse(object):
+    def __init__(self, response, response_type):
+        self.response = response
+        self.response_type = response_type
+
 class RenderWithTests(unittest.TestCase):
 
     def setUp(self):
@@ -493,19 +498,20 @@ class RenderWithTests(unittest.TestCase):
             except TypeError:
                 return response_dict.__class__
         django_drapes.render = render
-        class DummyResponse(object):
-            def __init__(self, response, response_type):
-                self.response = response
-                self.response_type = response_type
         django_drapes.HttpResponse = DummyResponse
 
     def test_http_response_returned(self):
+        #not the optimal test, but there was no easy way around it
+        class HttpResponseRedirect(DummyResponse):
+            def __init__(self, path):
+                pass
         response = HttpResponseRedirect('/')
         @render_with('')
         def controller(request):
             return response
-        self.failUnlessEqual(controller(Bunch(method='GET',GET=dict())),
-                             response.__class__)
+        real_response = controller(Bunch(method='GET',
+                                         GET=dict()))
+        self.failUnless(real_response is response)
 
 
     def test_template_returned(self):
@@ -670,16 +676,26 @@ class ModelViewTests(unittest.TestCase):
             pass
         class MockModelView(ModelView):
             model = MockModel
-            def some_view(self):
-                return "Output of some view"
+            def some_view(self, first_arg, second_arg=None):
+                return "%s %s" % (first_arg, second_arg)
+
+        class MockObject(object):
+            pass
+
         template_model = Mock()
         template_model.resolve.return_value = MockModel()
-        Variable.return_value = template_model
-        node = ModelViewNode('instance', 'some_other_view')
+
+        return_vals = [template_model, 'variable value']
+        def popit(_):
+            return return_vals.pop()
+        Variable.side_effect = popit
+        node = ModelViewNode('instance',
+                             'some_view',
+                             args=["'some string'"],
+                             kwargs=dict(second_arg='otherthing'))
         context = Mock()
-        self.failUnlessRaises(NoSuchView,
-                              node.render,
-                              context)
+        self.failUnlessEqual(node.render(context),
+                             'some string variable value')
 
 
     def test_args_list_length(self):
