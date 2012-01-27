@@ -30,7 +30,7 @@ controller has to include a keyword argument that defaults to an
 unused value in order to force its conversion from the get parameter
 into an argument. If you want the GET dictionary to be included in
 verification, the first argument of the controller has to be called
-'request'.
+request.
 
 require
 -------
