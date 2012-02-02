@@ -15,10 +15,11 @@ verify
 
 verify is a decorator that turns values passed to the controller into
 a more usable form (such as models), and throws suitable exceptions
-when that does not work. The conversions are specified as keyword
+when this does not work. The conversions are specified as keyword
 arguments with a validator matching the name of the controller
-argument. The validators have to match the formencode library
-validator format.
+argument. The validators have to implement the `formencode validator
+interface
+<http://www.formencode.org/en/latest/Validator.html>`_.
 
 Here is a simple example::
 
@@ -30,17 +31,16 @@ Here is a simple example::
     	return 'Argument is %d' % int_arg
 
 The controller receives int_arg as an integer, and you do not need to
-do the conversions in the controller. The values for the conversions
-are searched in the arguments for the controller function, and
-additionally the get parameters if the request is a get. This causes a
-mismatch between the url definition and the function signature, since
-one can't specify get parameters in a url entry, and a controller
-normally has to look up a get parameter in the get dict. Because of
-this mismatch, the controller has to include a keyword argument that
-defaults to an unused value in order to force its conversion from the
-get parameter into an argument. If you want the GET dictionary to be
-included in verification, the first argument of the controller has to
-be called request.
+do the conversions in the controller.
+
+The values for the conversions are searched in the arguments for the
+controller function, and additionally the get parameters if the
+request is a get. This causes a mismatch between the url definition
+and the function signature, since one can't specify get parameters in
+a url entry, and a controller normally has to look up a get parameter
+in request.GET. Because of this mismatch, in case you want to verify a
+GET parameter, the controller has to include this parameter as a
+keyword argument in order to force conversion.
 
 The most frequently done conversion is selecting a model with a unique
 field. django-drapes has a built in validator for this kind of
@@ -51,7 +51,7 @@ conversion, called ModelValidator. It can be used as follows::
     import formencode
 
     class Project(models.Model):
-        slug = models.SlugField()
+        slug = models.SlugField(unique=True)
 
     @verify(item=ModelValidator(get_by=slug))
     def controller(request, item):
@@ -61,10 +61,10 @@ conversion, called ModelValidator. It can be used as follows::
 require
 -------
 
-require is a decorator for checking permissions on an incoming request
-to a controller. It accepts keyword arguments with key referring to
+require checks permissions on an incoming request to a controller.
+Just like validate, it accepts keyword arguments with key referring
 either to user (accessed through request.user) or the positional or
-keyword arguments of a view function, and value referring to a string
+keyword arguments of a view function.  Value must be a string
 corresponding to the permission. What the permission refers to is
 determined in the following order:
 
@@ -80,16 +80,13 @@ Here is a very simple example::
     import formencode
 
     class Project(models.Model):
-        slug = models.SlugField()
+        slug = models.SlugField(unique=True)
+	published = models.BooleanField(default=False)
 
     @verify(item=ModelValidator(get_by=slug))
-    @require(item='can_view')
+    @require(item='published')
     def controller(request, item):
-    	return "Na"
-
-Here, 'can_view' can either be an attribute or a method of item. In
-case the requirement is not satisfied, a PermissionException is
-raised.
+    	return "Item's slug is %s" % item.slug
 
 Permissions can be added to models using the ModelPermission
 class, as follows::
