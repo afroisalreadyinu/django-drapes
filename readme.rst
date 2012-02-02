@@ -48,8 +48,12 @@ field. django-drapes has a built in validator for this kind of
 conversion, called ModelValidator. It can be used as follows:
 
 ::
+    from django.db import models
     from django_drapes import verify, ModelValidator
     import formencode
+
+    class Project(models.Model):
+        slug = models.SlugField()
 
     @verify(item=ModelValidator(get_by=slug))
     def controller(request, item):
@@ -60,26 +64,59 @@ require
 -------
 
 require is a decorator for checking permissions on an incoming request
-to a controller. It accepts keyword arguments referring either to user
-(accessed through request.user) or the positional or keyword arguments
-of a view function, and a string corresponding to the permission. The
-request is assumed to be the first argument of the controller. What
-permission to execute is determined in the following order:
+to a controller. It accepts keyword arguments with key referring to
+either to user (accessed through request.user) or the positional or
+keyword arguments of a view function, and value referring to a string
+corresponding to the permission. What the permission refers to is
+determined in the following order:
 
 - An attribute of the object
 - A method of the object that does not require any arguments
 - A method of the model permission (a subclass of ModelPermission;
   see below) that accepts a user as argument.
 
-::
-    from django_drapes import require
+Here is a very simple example:
 
+::
+    from django.db import models
+    from django_drapes import verify, ModelValidator
+    import formencode
+
+    class Project(models.Model):
+        slug = models.SlugField()
+
+    @verify(item=ModelValidator(get_by=slug))
     @require(item='can_view')
     def controller(request, item):
     	return "Na"
 
-In case the requirement is not satisfied, a PermissionException is
+Here, 'can_view' can either be an attribute or a method of item. In
+case the requirement is not satisfied, a PermissionException is
 raised.
+
+Permissions can be added to models using the ModelPermission
+class, as follows:
+
+::
+    from django.db import models
+    from django_drapes import verify, ModelValidator
+    import formencode
+
+    class Project(models.Model):
+        slug = models.SlugField()
+
+    @verify(item=ModelValidator(get_by=slug))
+    @require(item='can_view')
+    def controller(request, item):
+    	return "Na"
+
+    class ProjectPermissions(ModelPermission):
+        model = Project
+	def can_view(self, user):
+            return user.username == 'horst'
+
+The only person who can view this item is the one named horst.
+
 
 verify_post
 -----------
