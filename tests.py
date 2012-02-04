@@ -322,12 +322,11 @@ class VerifyTests(unittest.TestCase):
 
 class VerifyPostTest(unittest.TestCase):
 
-
     def test_signature_check_invalid(self):
         request = Bunch(method='GET')
         def valid_handler(request, form):
             pass
-        deco = verify_post(None, valid_handler)
+        deco = verify_post.single(None, valid_handler)
         def controller(request, controller_arg, invalid_form=None):
             return "Response"
         self.failUnlessRaises(NonmatchingHandlerArgspecs,
@@ -338,7 +337,7 @@ class VerifyPostTest(unittest.TestCase):
         request = Bunch(method='GET')
         def valid_handler(request, form):
             pass
-        @verify_post(None, valid_handler)
+        @verify_post.single(None, valid_handler)
         def controller(request, invalid_form=None):
             return "Response"
         self.failUnlessEqual(controller(request),
@@ -353,7 +352,7 @@ class VerifyPostTest(unittest.TestCase):
             self.failUnless(form.is_valid())
             return "Valid controller"
 
-        @verify_post(FakeForm, valid_controller)
+        @verify_post.single(FakeForm, valid_controller)
         def controller(request, invalid_form=None):
             return "Original controller"
 
@@ -368,7 +367,7 @@ class VerifyPostTest(unittest.TestCase):
         def valid_controller(request, form):
             return "Valid controller"
 
-        @verify_post(FakeForm, valid_controller)
+        @verify_post.single(FakeForm, valid_controller)
         def controller(request, invalid_form=None):
             return "Original controller"
 
@@ -389,7 +388,7 @@ class VerifyPostTest(unittest.TestCase):
         def valid_controller(request, form):
             return "The name is " + form.user.username
 
-        @verify_post(FakeForm, valid_controller, pass_user=True)
+        @verify_post.single(FakeForm, valid_controller, pass_user=True)
         def controller(request, invalid_form=None):
             pass
 

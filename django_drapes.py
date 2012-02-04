@@ -199,13 +199,21 @@ class verify_post(object):
     validations on a page that handles both get and post requests.
     """
 
-    def __init__(self,
-                 form_class,
-                 valid_handler,
-                 pass_user=None):
-        self.form_class = form_class
-        self.valid_handler = valid_handler
-        self.pass_user = pass_user
+    @classmethod
+    def single(cls, form_class, valid_handler, pass_user=False):
+        verifier = cls()
+        verifier.multi = False
+        verifier.form_class = form_class
+        verifier.valid_handler = valid_handler
+        verifier.pass_user = pass_user
+        return verifier
+
+    @classmethod
+    def multi(cls, **forms):
+        verifier = cls()
+        verifier.multi = True
+        verifier.form_class = form_class
+
 
     def _match_handlers(self, default_handler, valid_handler):
         default_args = copy.copy(inspect.getargspec(default_handler).args)
@@ -217,7 +225,8 @@ class verify_post(object):
 
 
     def __call__(self, view_func):
-        self._match_handlers(view_func, self.valid_handler)
+        if not self.multi:
+            self._match_handlers(view_func, self.valid_handler)
         def replacement_func(request, *args, **kwargs):
             if not request.method == 'POST':
                 return view_func(request, *args, **kwargs)
