@@ -396,6 +396,27 @@ class VerifyPostTest(unittest.TestCase):
                              "The name is Skeletor")
 
 
+    def test_correct_post_multiple(self):
+        request = Bunch(method="POST",
+                        POST=dict(valid=True,
+                                  drape_form_name='form1'))
+
+        def valid_controller(request, form):
+            self.failUnless(form.is_valid())
+            return "Valid controller"
+
+        def invalid_controller(request, form):
+            return "Not the valid controller"
+
+        @verify_post.multi(form1=(FakeForm, valid_controller),
+                           form2=(FakeForm, invalid_controller))
+        def controller(request, form1=None, form2=None):
+            return "Original controller"
+
+        self.failUnlessEqual(controller(request),
+                             "Valid controller")
+
+
 class CombinedTests(unittest.TestCase):
 
 

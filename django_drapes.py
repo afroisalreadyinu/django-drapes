@@ -212,36 +212,59 @@ class verify_post(object):
     def multi(cls, **forms):
         verifier = cls()
         verifier.multi = True
-        verifier.form_class = form_class
+        verifier.forms = forms
+        return verifier
 
 
-    def _match_handlers(self, default_handler, valid_handler):
-        default_args = copy.copy(inspect.getargspec(default_handler).args)
-        default_args.remove('invalid_form')
-        valid_args = copy.copy(inspect.getargspec(valid_handler).args)
-        valid_args.remove('form')
-        if not default_args == valid_args:
-            raise NonmatchingHandlerArgspecs()
+    def _match_handlers(self, default_handler):
+        if not self.multi:
+            default_args = copy.copy(inspect.getargspec(default_handler).args)
+            default_args.remove('invalid_form')
+            valid_args = copy.copy(inspect.getargspec(self.valid_handler).args)
+            valid_args.remove('form')
+            if not default_args == valid_args:
+                raise NonmatchingHandlerArgspecs()
+        else:
+            default_args = copy.copy(inspect.getargspec(default_handler).args)
+            for form_name in self.forms:
+                default_args.remove(form_name)
+            for form_name, form_info in self.forms.iteritems():
+                valid_args = copy.copy(inspect.getargspec(form_info[1]).args)
+                valid_args.remove('form')
+                if not default_args == valid_args:
+                    raise NonmatchingHandlerArgspecs()
 
+
+    FORM_FIELD_NAME = 'drape_form_name'
 
     def __call__(self, view_func):
-        if not self.multi:
-            self._match_handlers(view_func, self.valid_handler)
+        self._match_handlers(view_func)
+
         def replacement_func(request, *args, **kwargs):
             if not request.method == 'POST':
                 return view_func(request, *args, **kwargs)
-            if self.pass_user:
-                form = self.form_class(request.POST, user=request.user)
+
+            if self.multi:
+                form_info = self.forms[request.POST[self.FORM_FIELD_NAME]]
+                form_class = form_info[0]
+                valid_handler = form_info[1]
+                pass_user = form_info[2]  if len(form_info) == 3 else False
             else:
-                form = self.form_class(request.POST)
+                form_class, valid_handler, pass_user = (self.form_class,
+                                                        self.valid_handler,
+                                                        self.pass_user)
+            if pass_user:
+                form = form_class(request.POST, user=request.user)
+            else:
+                form = form_class(request.POST)
             if not form.is_valid():
                 kwargs['invalid_form'] = form
                 return view_func(request, *args, **kwargs)
             else:
                 kwargs['form'] = form
-                return self.valid_handler(request,
-                                          *args,
-                                          **kwargs)
+                return valid_handler(request,
+                                     *args,
+                                     **kwargs)
         return replacement_func
 
 
