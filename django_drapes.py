@@ -217,23 +217,22 @@ class verify_post(object):
 
 
     def _match_handlers(self, default_handler):
-        if not self.multi:
+        def _compare_funcs(base_func, valid_handler, remove_args=None):
+            remove_args = remove_args or ['invalid_form']
             default_args = copy.copy(inspect.getargspec(default_handler).args)
-            default_args.remove('invalid_form')
-            valid_args = copy.copy(inspect.getargspec(self.valid_handler).args)
+            for x in remove_args:
+                default_args.remove(x)
+            valid_args = copy.copy(inspect.getargspec(valid_handler).args)
             valid_args.remove('form')
             if not default_args == valid_args:
                 raise NonmatchingHandlerArgspecs()
-        else:
-            default_args = copy.copy(inspect.getargspec(default_handler).args)
-            for form_name in self.forms:
-                default_args.remove(form_name)
-            for form_name, form_info in self.forms.iteritems():
-                valid_args = copy.copy(inspect.getargspec(form_info[1]).args)
-                valid_args.remove('form')
-                if not default_args == valid_args:
-                    raise NonmatchingHandlerArgspecs()
 
+        if self.multi:
+            remove_args = self.forms.keys()
+            for form_info in self.forms.values():
+                _compare_funcs(default_handler, form_info[1], remove_args)
+        else:
+            _compare_funcs(default_handler, self.valid_handler)
 
     FORM_FIELD_NAME = 'drape_form_name'
 
