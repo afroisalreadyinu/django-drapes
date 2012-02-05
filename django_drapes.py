@@ -244,7 +244,8 @@ class verify_post(object):
                 return view_func(request, *args, **kwargs)
 
             if self.multi:
-                form_info = self.forms[request.POST[self.FORM_FIELD_NAME]]
+                form_name = request.POST[self.FORM_FIELD_NAME]
+                form_info = self.forms[form_name]
                 form_class = form_info[0]
                 valid_handler = form_info[1]
                 pass_user = form_info[2]  if len(form_info) == 3 else False
@@ -257,7 +258,8 @@ class verify_post(object):
             else:
                 form = form_class(request.POST)
             if not form.is_valid():
-                kwargs['invalid_form'] = form
+                key = form_name if self.multi else 'invalid_form'
+                kwargs[key] = form
                 return view_func(request, *args, **kwargs)
             else:
                 kwargs['form'] = form
