@@ -199,40 +199,75 @@ class verify_post(object):
     validations on a page that handles both get and post requests.
     """
 
-    def __init__(self,
-                 form_class,
-                 valid_handler,
-                 pass_user=None):
-        self.form_class = form_class
-        self.valid_handler = valid_handler
-        self.pass_user = pass_user
+    @classmethod
+    def single(cls, form_class, valid_handler, pass_user=False):
+        verifier = cls()
+        verifier.multi = False
+        verifier.form_class = form_class
+        verifier.valid_handler = valid_handler
+        verifier.pass_user = pass_user
+        return verifier
 
-    def _match_handlers(self, default_handler, valid_handler):
-        default_args = copy.copy(inspect.getargspec(default_handler).args)
-        default_args.remove('invalid_form')
-        valid_args = copy.copy(inspect.getargspec(valid_handler).args)
-        valid_args.remove('form')
-        if not default_args == valid_args:
-            raise NonmatchingHandlerArgspecs()
+    @classmethod
+    def multi(cls, **forms):
+        verifier = cls()
+        verifier.multi = True
+        verifier.forms = forms
+        return verifier
 
+
+    def _match_handlers(self, default_handler):
+        def _compare_funcs(base_func, valid_handler, remove_args=None):
+            remove_args = remove_args or ['invalid_form']
+            default_args = copy.copy(inspect.getargspec(default_handler).args)
+            for x in remove_args:
+                default_args.remove(x)
+            valid_args = copy.copy(inspect.getargspec(valid_handler).args)
+            valid_args.remove('form')
+            if not default_args == valid_args:
+                raise NonmatchingHandlerArgspecs()
+
+        if self.multi:
+            remove_args = self.forms.keys()
+            for form_info in self.forms.values():
+                _compare_funcs(default_handler, form_info[1], remove_args)
+        else:
+            _compare_funcs(default_handler, self.valid_handler)
+
+    FORM_FIELD_NAME = 'drape_form_name'
 
     def __call__(self, view_func):
-        self._match_handlers(view_func, self.valid_handler)
+        self._match_handlers(view_func)
+
         def replacement_func(request, *args, **kwargs):
             if not request.method == 'POST':
                 return view_func(request, *args, **kwargs)
-            if self.pass_user:
-                form = self.form_class(request.POST, user=request.user)
+
+            if self.multi:
+                form_name = request.POST[self.FORM_FIELD_NAME]
+                if not form_name in self.forms:
+                    raise ValueError('No POST handler set for form %s' % form_name)
+                form_info = self.forms[form_name]
+                form_class = form_info[0]
+                valid_handler = form_info[1]
+                pass_user = form_info[2]  if len(form_info) == 3 else False
             else:
-                form = self.form_class(request.POST)
+                form_class, valid_handler, pass_user = (self.form_class,
+                                                        self.valid_handler,
+                                                        self.pass_user)
+            if pass_user:
+                form = form_class(request.POST, user=request.user)
+            else:
+                form = form_class(request.POST)
             if not form.is_valid():
-                kwargs['invalid_form'] = form
+                key = form_name if self.multi else 'invalid_form'
+                kwargs[key] = form
                 return view_func(request, *args, **kwargs)
             else:
                 kwargs['form'] = form
-                return self.valid_handler(request,
-                                          *args,
-                                          **kwargs)
+                return valid_handler(request,
+                                     *args,
+                                     **kwargs)
         return replacement_func
 
 

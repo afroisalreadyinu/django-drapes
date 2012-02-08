@@ -322,12 +322,11 @@ class VerifyTests(unittest.TestCase):
 
 class VerifyPostTest(unittest.TestCase):
 
-
     def test_signature_check_invalid(self):
         request = Bunch(method='GET')
         def valid_handler(request, form):
             pass
-        deco = verify_post(None, valid_handler)
+        deco = verify_post.single(None, valid_handler)
         def controller(request, controller_arg, invalid_form=None):
             return "Response"
         self.failUnlessRaises(NonmatchingHandlerArgspecs,
@@ -338,7 +337,7 @@ class VerifyPostTest(unittest.TestCase):
         request = Bunch(method='GET')
         def valid_handler(request, form):
             pass
-        @verify_post(None, valid_handler)
+        @verify_post.single(None, valid_handler)
         def controller(request, invalid_form=None):
             return "Response"
         self.failUnlessEqual(controller(request),
@@ -353,7 +352,7 @@ class VerifyPostTest(unittest.TestCase):
             self.failUnless(form.is_valid())
             return "Valid controller"
 
-        @verify_post(FakeForm, valid_controller)
+        @verify_post.single(FakeForm, valid_controller)
         def controller(request, invalid_form=None):
             return "Original controller"
 
@@ -368,7 +367,7 @@ class VerifyPostTest(unittest.TestCase):
         def valid_controller(request, form):
             return "Valid controller"
 
-        @verify_post(FakeForm, valid_controller)
+        @verify_post.single(FakeForm, valid_controller)
         def controller(request, invalid_form=None):
             return "Original controller"
 
@@ -389,12 +388,79 @@ class VerifyPostTest(unittest.TestCase):
         def valid_controller(request, form):
             return "The name is " + form.user.username
 
-        @verify_post(FakeForm, valid_controller, pass_user=True)
+        @verify_post.single(FakeForm, valid_controller, pass_user=True)
         def controller(request, invalid_form=None):
             pass
 
         self.failUnlessEqual(controller(request),
                              "The name is Skeletor")
+
+
+    def test_correct_post_multiple(self):
+        request = Bunch(method="POST",
+                        POST=dict(valid=True,
+                                  drape_form_name='form1'))
+
+        def valid_controller(request, form):
+            self.failUnless(form.is_valid())
+            return "Valid controller"
+
+        def invalid_controller(request, form):
+            return "Not the valid controller"
+
+        @verify_post.multi(form1=(FakeForm, valid_controller),
+                           form2=(FakeForm, invalid_controller))
+        def controller(request, form1=None, form2=None):
+            return "Original controller"
+
+        self.failUnlessEqual(controller(request),
+                             "Valid controller")
+
+
+    def test_invalid_multiple_post(self):
+        request = Bunch(method="POST",
+                        POST=dict(valid=False,
+                                  drape_form_name='form1'))
+
+        def valid_controller(request, form):
+            pass
+
+        @verify_post.multi(form1=(FakeForm, valid_controller),
+                           form2=(FakeForm, valid_controller))
+        def controller(request, form1=None, form2=None):
+            self.failIf(form1 is None)
+            return "Original controller"
+
+        self.failUnlessEqual(controller(request),
+                             "Original controller")
+
+
+    def test_multiple_post_pass_user(self):
+        dummy_user = object()
+        request = Bunch(method="POST",
+                        user=dummy_user,
+                        POST=dict(valid=False,
+                                  drape_form_name='form1'))
+
+        def valid_controller(request, form):
+            pass
+
+        def valid_controller_two(request, form):
+            self.failUnless(form.user is dummy_user)
+
+        class FakeFormWithUser(object):
+            def __init__(self, data_dict, user):
+                self.data_dict, self.user = data_dict, user
+            def is_valid(self): return True
+
+        @verify_post.multi(form1=(FakeForm, valid_controller),
+                           form2=(FakeFormWithUser, valid_controller_two, True))
+        def controller(request, form1=None, form2=None):
+            return "Original controller"
+
+        self.failUnlessEqual(controller(request),
+                             "Original controller")
+
 
 
 class CombinedTests(unittest.TestCase):
