@@ -245,6 +245,8 @@ class verify_post(object):
 
             if self.multi:
                 form_name = request.POST[self.FORM_FIELD_NAME]
+                if not form_name in self.forms:
+                    raise ValueError('No POST handler set for form %s' % form_name)
                 form_info = self.forms[form_name]
                 form_class = form_info[0]
                 valid_handler = form_info[1]
