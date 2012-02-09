@@ -30,17 +30,17 @@ Here is a simple example::
     def controller(request, int_arg):
     	return 'Argument is %d' % int_arg
 
-The controller receives int_arg as an integer, and you do not need to
-do the conversions in the controller.
+The controller receives int_arg as an integer, obviating the need to
+convert in the controller.
 
 The values for the conversions are searched in the arguments for the
-controller function, and additionally the get parameters if the
-request is a get. This causes a mismatch between the url definition
+controller function, and additionally the GET parameters if the
+request is a GET. This causes a mismatch between the url definition
 and the function signature, since one can't specify get parameters in
-a url entry, and a controller normally has to look up a get parameter
+a url entry, and a controller normally has to look up a GET parameter
 in request.GET. Because of this mismatch, in case you want to verify a
-GET parameter, the controller has to include this parameter as a
-keyword argument in order to force conversion.
+GET parameter, you should include this parameter as a keyword argument
+in the controller signature.
 
 The most frequently done conversion is selecting a model with a unique
 field. django-drapes has a built in validator for this kind of
@@ -48,12 +48,11 @@ conversion, called ModelValidator. It can be used as follows::
 
     from django.db import models
     from django_drapes import verify, ModelValidator
-    import formencode
 
     class Project(models.Model):
         slug = models.SlugField(unique=True)
 
-    @verify(item=ModelValidator(get_by=slug))
+    @verify(item=ModelValidator(get_by='slug'))
     def controller(request, item):
     	return "Item's slug is %s" % item.slug
 
@@ -92,21 +91,23 @@ Permissions can be added to models using by subclassing the
 ModelPermission class, and setting a model as the class attribute::
 
     from django.db import models
-    from django_drapes import verify, ModelValidator
+    from django_drapes import (verify,
+                               ModelValidator,
+			       ModelPermission)
     import formencode
 
-    class Project(models.Model):
+    class Thing(models.Model):
         slug = models.SlugField()
 
 
-    class ProjectPermissions(ModelPermission):
-        model = Project
+    class ThingPermissions(ModelPermission):
+        model = Thing
 	def can_view(self, user):
             return user.username == 'horst'
 
-    @verify(item=ModelValidator(get_by=slug))
-    @require(item='can_view')
-    def controller(request, item):
+    @verify(thing=ModelValidator(get_by=slug))
+    @require(thing='can_view')
+    def controller(request, thing):
     	return "Na"
 
 The only person who can view this item is the one named horst.
@@ -125,26 +126,134 @@ also process it when it gets POSTed::
 
     from django import forms
     from django_drapes import verify_post
+    from django.http import HttpResponseRedirect
+    #we are assuming the models exist somewhere
+    from .models import Thing
 
-    class EntityForm(forms.Form):
+    class ThingForm(forms.Form):
         name = forms.CharField(required=True, min_length=4)
 
-    def create_entity(form):
+    def create_thing(request, form):
+        thing = Thing(name=form.data['name'])
+        thing.save()
+	return HttpResponseRedirect(thing.get_absolute_url())
+
+    @verify_post.single(ThingForm, create_thing)
+    @require(item='can_view')
+    def controller(request, item, invalid_form=None):
+    	return TODO
+
+Some notes on this example. When you are handling single forms, the
+controller has to have a keyword argument invalid_form. In case the
+form does not validate, the invalid form is handed to the controller
+through this argument. The post
+
+The other way of instantiating this decorator is for handling
+different form posts to the same controller::
+
+    from django import forms
+    from django_drapes import verify_post
+    from .models import Thing, Organism
+
+    class ThingForm(forms.Form):
+        name = forms.CharField(required=True, min_length=4)
+
+    class OrganismForm(forms.Form):
+        genus = forms.CharField(required=True, min_length=10)
+
+    def create_thing(request, form):
+
+
+    def create_organism(request, form):
         #do whatever you want with the validated form here
 	#and then return an Http response
 
-    @verify_post.single(EntityForm, create_entity)
+    @verify_post.multi(thing_form=(EntityForm, create_entity),
+                       oganism_form=(OrganismsForm, create_organism))
     @require(item='can_view')
     def controller(request, item, invalid_form=None):
     	return "Na"
 
+One complication for which I couldn't come up with a decent solution
+is form validation with a user.
 
 render_with
 -----------
-render_with turns dictionary return values into rendered templates.
+
+render_with turns dictionary return values into rendered templates. It
+requires a string as argument, signifying either a template path or
+json. render_with then calls django.shortcuts.render with the
+dictionary-like return value of the controller, and the template
+name::
+
+    @render_with('test.htm')
+    def controller(request):
+        return dict(message='Hello world')
+
+The default template can be overriden by setting a 'template' key in
+the return dictionary to the desired template name. render_with also
+respects return values which are subclasses of HttpResponse
+(e.g. HttpResponseRedirect). If you want to return something else from
+your controller, do not use this decorator.
+
+Mixing the decorators
+---------------------
+
+Any number of these decorators can be applied to the same
+controller. The following is posible::
+
+    @render_with('some_template.html')
+    @verify(model_inst=ModelValidator(MockModel,
+                                      get_by='slug'))
+    @require(model_inst='can_view',
+             user='is_authenticated')
+    def controller(request, model_inst):
+        return model_inst.message
 
 
 Template tags
 =============
 
-if_allowed and modelview
+django-drapes comes with two template tags which make it possible to
+refer to permission classes, and to render pieces of html from a
+model. These tags are if_allowed and modelview. if_allowed is a tag
+which conditionally renders content based on the outcome of a
+permission applied to a user. Let's have an example for a
+change. Model and permissions::
+
+    from django.db import models
+    from django_drapes import ModelPermission
+
+    class Thing(models.Model):
+        slug = models.SlugField(unique=True)
+
+    class ThingPermissions(ModelPermission):
+        model = Thing
+
+	def can_view(self, user):
+	    return user.username == 'horst'
+
+And then in the template which gets rendered with a user and a thing,
+you can do the following::
+
+    {% load wherever_you_put_the_tags %}
+    {% if_allowed user can_view thing %}
+        {{thing.get_absolute_url}}
+    {% else %}
+        You no can view!
+    {% end_if_allowed %}
+
+If your username is not horst, you will see 'You no can view!'.
+
+Since django-drapes is not organized as an app, both of these tags
+have to be manually registered to be used in templates. You can do
+this by creating a templatetags folder in one of your project apps,
+and then including the following in a file there::
+
+    from django import template
+    from django_drapes import model_permission, modelview
+    register = template.Library()
+    register.tag('if_allowed', model_permission)
+    register.tag('modelview', modelview)
+
+You are free to change the names of the tags, of course.
