@@ -110,7 +110,9 @@ ModelPermission class, and setting a model as the class attribute::
     def controller(request, thing):
     	return "Na"
 
-The only person who can view this item is the one named horst.
+The only person who can view this item is the one named horst. The
+default selector used by ModelValidator is model id; this can be
+overriden using the get_by argument, as seen above.
 
 
 verify_post
@@ -119,34 +121,46 @@ verify_post
 verify_post is a decorator for splitting the handling of user input
 through forms into two parts. It aims to solve the problem of handling
 POST and GET requests from the same url, and avoiding the master if
-switch for thesetwo kinds of requests at the beginning of a
-controller. There are two ways to use verify_post. The first is the
-simple case, where a controller should display a form for GET, and
-also process it when it gets POSTed::
+switch for these two kinds of requests at the beginning of a
+controller.
+
+There are two ways to use verify_post. The first is the simple case,
+where a controller should display a form for GET, and also process it
+when it gets POSTed. In this case, verify_post.single accepts two
+arguments, the form used to verify the POST data when the request is a
+POST, and the handler for correct data::
 
     from django import forms
     from django_drapes import verify_post
     from django.http import HttpResponseRedirect
     #we are assuming the models exist somewhere
     from .models import Thing
+    from django_drapes import (verify,
+                               verify_post,
+                               ModelValidator)
 
     class ThingForm(forms.Form):
         name = forms.CharField(required=True, min_length=4)
 
-    def create_thing(request, form):
+    def create_thing(request, item, form):
         thing = Thing(name=form.data['name'])
         thing.save()
 	return HttpResponseRedirect(thing.get_absolute_url())
 
+    @verify(item=ModelValidator())
     @verify_post.single(ThingForm, create_thing)
     @require(item='can_view')
     def controller(request, item, invalid_form=None):
     	return TODO
 
-Some notes on this example. When you are handling single forms, the
-controller has to have a keyword argument invalid_form. In case the
-form does not validate, the invalid form is handed to the controller
-through this argument. The post
+Some notes on this comprehensive example, which I will refer to again
+later. When you are handling single forms, the controller has to have
+a keyword argument invalid_form. In case the form does not validate,
+the invalid form is handed to the controller through this
+argument. The handler of the correct form, in this case create_thing,
+has to have the same signature as the controller, except for
+invalid_form, which should be called form in the signature of the
+correct handler.
 
 The other way of instantiating this decorator is for handling
 different form posts to the same controller::
@@ -169,7 +183,7 @@ different form posts to the same controller::
 	#and then return an Http response
 
     @verify_post.multi(thing_form=(EntityForm, create_entity),
-                       oganism_form=(OrganismsForm, create_organism))
+                       organism_form=(OrganismsForm, create_organism))
     @require(item='can_view')
     def controller(request, item, invalid_form=None):
     	return "Na"
@@ -210,6 +224,9 @@ controller. The following is posible::
     def controller(request, model_inst):
         return model_inst.message
 
+The principle here is that if a decorator depends on the conversions
+of another, it should come after it. We saw an example of this
+above. TODO.
 
 Template tags
 =============
