@@ -176,11 +176,10 @@ different form posts to the same controller::
         genus = forms.CharField(required=True, min_length=10)
 
     def create_thing(request, form):
-
+        Thing(name=form.data['name'])
 
     def create_organism(request, form):
-        #do whatever you want with the validated form here
-	#and then return an Http response
+        Organism(genus=form.data['genus'])
 
     @verify_post.multi(thing_form=(EntityForm, create_entity),
                        organism_form=(OrganismsForm, create_organism))
@@ -257,10 +256,10 @@ you can do the following::
     {% if_allowed user can_view thing %}
         {{thing.get_absolute_url}}
     {% else %}
-        You no can view!
+        For horst's eyes only
     {% end_if_allowed %}
 
-If your username is not horst, you will see 'You no can view!'.
+If your username is not horst, you will see 'For horst's eyes only'.
 
 Since django-drapes is not organized as an app, both of these tags
 have to be manually registered to be used in templates. You can do
