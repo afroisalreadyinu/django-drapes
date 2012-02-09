@@ -88,8 +88,8 @@ Here is a very simple example::
     def controller(request, item):
     	return "Item's slug is %s" % item.slug
 
-Permissions can be added to models using the ModelPermission
-class, as follows::
+Permissions can be added to models using by subclassing the
+ModelPermission class, and setting a model as the class attribute::
 
     from django.db import models
     from django_drapes import verify, ModelValidator
@@ -98,15 +98,16 @@ class, as follows::
     class Project(models.Model):
         slug = models.SlugField()
 
-    @verify(item=ModelValidator(get_by=slug))
-    @require(item='can_view')
-    def controller(request, item):
-    	return "Na"
 
     class ProjectPermissions(ModelPermission):
         model = Project
 	def can_view(self, user):
             return user.username == 'horst'
+
+    @verify(item=ModelValidator(get_by=slug))
+    @require(item='can_view')
+    def controller(request, item):
+    	return "Na"
 
 The only person who can view this item is the one named horst.
 
@@ -115,7 +116,28 @@ verify_post
 -----------
 
 verify_post is a decorator for splitting the handling of user input
-through forms into two parts.
+through forms into two parts. It aims to solve the problem of handling
+POST and GET requests from the same url, and avoiding the master if
+switch for thesetwo kinds of requests at the beginning of a
+controller. There are two ways to use verify_post. The first is the
+simple case, where a controller should display a form for GET, and
+also process it when it gets POSTed::
+
+    from django import forms
+    from django_drapes import verify_post
+
+    class EntityForm(forms.Form):
+        name = forms.CharField(required=True, min_length=4)
+
+    def create_entity(form):
+        #do whatever you want with the validated form here
+	#and then return an Http response
+
+    @verify_post.single(EntityForm, create_entity)
+    @require(item='can_view')
+    def controller(request, item, invalid_form=None):
+    	return "Na"
+
 
 render_with
 -----------
