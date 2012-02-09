@@ -56,7 +56,6 @@ conversion, called ModelValidator. It can be used as follows::
     def controller(request, item):
     	return "Item's slug is %s" % item.slug
 
-
 require
 -------
 
@@ -78,27 +77,27 @@ Here is a very simple example::
     from django_drapes import verify, ModelValidator
     import formencode
 
-    class Project(models.Model):
+    class Thing(models.Model):
         slug = models.SlugField(unique=True)
 	published = models.BooleanField(default=False)
 
-    @verify(item=ModelValidator(get_by=slug))
-    @require(item='published')
-    def controller(request, item):
-    	return "Item's slug is %s" % item.slug
+    @verify(item=ModelValidator(Thing, get_by=slug))
+    @require(user='is_authenticated',
+             thing='published')
+    def controller(request, thing):
+    	return "This thing's slug is %s" % item.slug
 
-Permissions can be added to models using by subclassing the
-ModelPermission class, and setting a model as the class attribute::
+Permissions can be added to models by subclassing the ModelPermission
+class, and setting a model as the class attribute::
 
     from django.db import models
+    from django.shortcuts import render
     from django_drapes import (verify,
                                ModelValidator,
 			       ModelPermission)
-    import formencode
 
     class Thing(models.Model):
         slug = models.SlugField()
-
 
     class ThingPermissions(ModelPermission):
         model = Thing
@@ -108,12 +107,11 @@ ModelPermission class, and setting a model as the class attribute::
     @verify(thing=ModelValidator(get_by=slug))
     @require(thing='can_view')
     def controller(request, thing):
-    	return "Na"
+    	return render(request, 'thing.htm', dict(thing=thing))
 
 The only person who can view this item is the one named horst. The
 default selector used by ModelValidator is model id; this can be
 overriden using the get_by argument, as seen above.
-
 
 verify_post
 -----------
@@ -163,7 +161,9 @@ invalid_form, which should be called form in the signature of the
 correct handler.
 
 The other way of instantiating this decorator is for handling
-different form posts to the same controller::
+different form posts to the same controller. In this case,
+verify_post.multi should be used with form options specified as
+keyword arguments, corresponding to a tuple of form and handler TODO::
 
     from django import forms
     from django_drapes import verify_post
@@ -188,7 +188,7 @@ different form posts to the same controller::
     	return "Na"
 
 One complication for which I couldn't come up with a decent solution
-is form validation with a user.
+is form validation with a user. TODO
 
 render_with
 -----------
@@ -260,6 +260,29 @@ you can do the following::
     {% end_if_allowed %}
 
 If your username is not horst, you will see 'For horst's eyes only'.
+
+The other template tag is a helper called modelview. In order to
+insert markup representing an aspect of a model, you can create
+subclass ModelView, and set its class attribute model to a django
+model::
+
+    from django.db import models
+    from django.template.loader import get_template
+    from django.template import Context
+    from django_drapes import ModelView
+
+    class Thing(models.Model):
+        slug = models.SlugField(unique=True)
+
+    class ThingView(ModelView):
+        model = MockModel
+
+        def some_view(self):
+            template = get_template('thing_some_view.html')
+            return template.render(Context(dict(thing=self)))
+
+It is advised to use template.render here, since this way you don't
+get the headers etc. TODO
 
 Since django-drapes is not organized as an app, both of these tags
 have to be manually registered to be used in templates. You can do
