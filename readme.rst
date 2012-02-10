@@ -115,17 +115,17 @@ overriden using the ``get_by`` argument, as seen above.
 verify_post
 -----------
 
-verify_post is a decorator for splitting the handling of user input
-through forms into two parts. It aims to solve the problem of handling
-POST and GET requests from the same url, and avoiding the master if
-switch for these two kinds of requests at the beginning of a
-controller.
+``verify_post`` is a decorator for easing the workflow with form
+input. The aim is to split the handling of user input through forms
+into the presentation of empty or erronuous forms, and the processing
+of a valid form.
 
 There are two ways to use verify_post. The first is the simple case,
-where a controller should display a form for GET, and also process it
-when it gets POSTed. In this case, verify_post.single accepts two
-arguments, the form used to verify the POST data when the request is a
-POST, and the handler for correct data::
+where the same entry point to an app should display a form for GET,
+and also process it when it gets POSTed. In this case,
+``verify_post.single`` should be used. This factory method accepts two
+positional arguments: the form used to verify the POST, and the
+handler to call if the form validates::
 
     from django import forms
     from django_drapes import verify_post
@@ -152,17 +152,17 @@ POST, and the handler for correct data::
     	return render_to_response('form_template.html',
 	                          dict(form=ThingForm()))
 
-Some notes on this comprehensive example, which I will refer to again
-later. When you are handling single forms, the controller must have a
-keyword argument ``invalid_form``. If the form does not validate, it
-is passed on to the controller through this argument. The handler of
-the correct form, in this case ``create_thing``, must have the same
-signature as the controller, except for ``invalid_form``, which is
-replaced with ``form`` in the signature of the correct handler.
+Some notes on this example, which I will refer to again later. When
+you are handling single forms, the controller must have a keyword
+argument ``invalid_form``. If the form does not validate, it is passed
+on to the controller through this argument. The handler of the correct
+form, in this case ``create_thing``, must have the same signature as
+the controller, except for ``invalid_form``, which is replaced with
+``form`` in the signature of the correct handler.
 
-The other way of instantiating this decorator is for handling
-different form posts to the same controller. In this case,
-verify_post.multi should be used with form options specified as
+If you want to use the same entry point to show and validate forms of
+different kinds, you should use ``verify_post.multi``. This method
+accepts a list of form validations with form options specified as
 keyword arguments, corresponding to a tuple of form and handler TODO::
 
     from django import forms
