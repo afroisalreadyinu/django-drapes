@@ -13,13 +13,12 @@ Decorators
 verify
 ------
 
-verify is a decorator that turns values passed to the controller into
-a more usable form (such as models), and throws suitable exceptions
-when this does not work. The conversions are specified as keyword
-arguments with a validator matching the name of the controller
+``verify`` is a decorator that turns values passed to the controller
+into a more usable form (such as models), and throws suitable
+exceptions when this does not work. The conversions are specified as
+keyword arguments with a validator matching the name of the controller
 argument. The validators have to implement the `formencode validator
-interface
-<http://www.formencode.org/en/latest/Validator.html>`_.
+interface <http://www.formencode.org/en/latest/Validator.html>`_.
 
 Here is a simple example::
 
@@ -30,8 +29,8 @@ Here is a simple example::
     def controller(request, int_arg):
     	return 'Argument is %d' % int_arg
 
-The controller receives int_arg as an integer, obviating the need to
-convert in the controller.
+The controller receives ``int_arg`` as an integer, obviating the need
+to convert in the controller.
 
 The values for the conversions are searched in the arguments for the
 controller function, and additionally the GET parameters if the
@@ -44,7 +43,7 @@ in the controller signature.
 
 The most frequently done conversion is selecting a model with a unique
 field. django-drapes has a built in validator for this kind of
-conversion, called ModelValidator. It can be used as follows::
+conversion, called ``ModelValidator``. It can be used as follows::
 
     from django.db import models
     from django_drapes import verify, ModelValidator
@@ -61,8 +60,8 @@ require
 
 require checks permissions on an incoming request to a controller.
 Just like validate, it accepts keyword arguments with key referring
-either to user (accessed through request.user) or the positional or
-keyword arguments of a view function.  Value must be a string
+either to user (accessed through ``request.user``) or the positional
+or keyword arguments of a view function.  Value must be a string
 corresponding to the permission. What the permission refers to is
 determined in the following order:
 
@@ -110,8 +109,8 @@ class, and setting a model as the class attribute::
     	return render(request, 'thing.htm', dict(thing=thing))
 
 The only person who can view this item is the one named horst. The
-default selector used by ModelValidator is model id; this can be
-overriden using the get_by argument, as seen above.
+default selector used by ``ModelValidator`` is model id; this can be
+overriden using the ``get_by`` argument, as seen above.
 
 verify_post
 -----------
@@ -131,6 +130,7 @@ POST, and the handler for correct data::
     from django import forms
     from django_drapes import verify_post
     from django.http import HttpResponseRedirect
+    from django.shortcuts import render_to_response
     #we are assuming the models exist somewhere
     from .models import Thing
     from django_drapes import (verify,
@@ -149,16 +149,16 @@ POST, and the handler for correct data::
     @verify_post.single(ThingForm, create_thing)
     @require(item='can_view')
     def controller(request, item, invalid_form=None):
-    	return TODO
+    	return render_to_response('form_template.html',
+	                          dict(form=ThingForm()))
 
 Some notes on this comprehensive example, which I will refer to again
-later. When you are handling single forms, the controller has to have
-a keyword argument invalid_form. In case the form does not validate,
-the invalid form is handed to the controller through this
-argument. The handler of the correct form, in this case create_thing,
-has to have the same signature as the controller, except for
-invalid_form, which should be called form in the signature of the
-correct handler.
+later. When you are handling single forms, the controller must have a
+keyword argument ``invalid_form``. If the form does not validate, it
+is passed on to the controller through this argument. The handler of
+the correct form, in this case ``create_thing``, must have the same
+signature as the controller, except for ``invalid_form``, which is
+replaced with ``form`` in the signature of the correct handler.
 
 The other way of instantiating this decorator is for handling
 different form posts to the same controller. In this case,
@@ -282,7 +282,18 @@ model::
             return template.render(Context(dict(thing=self)))
 
 It is advised to use template.render here, since this way you don't
-get the headers etc. TODO
+get a response with the full HTTP headers. If you want to get the
+output of a model view, you can use the view function named just v to
+get the ModelView for a model instance::
+
+    from django_drapes import verify, ModelValidator, v
+    from .models import Thing
+
+    @verify(thing=ModelValidator(Thing,
+                                 get_by='slug'))
+    def just_some_view(request, thing):
+        return v(thing).some_view()
+
 
 Since django-drapes is not organized as an app, both of these tags
 have to be manually registered to be used in templates. You can do
