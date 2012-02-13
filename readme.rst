@@ -162,8 +162,10 @@ the controller, except for ``invalid_form``, which is replaced with
 
 If you want to use the same entry point to show and validate forms of
 different kinds, you should use ``verify_post.multi``. This method
-accepts a list of form validations with form options specified as
-keyword arguments, corresponding to a tuple of form and handler TODO::
+accepts a list of form options specified with keyword arguments which
+are the names of the forms on the page. The form options have to be
+tuples specifying the form for validation and the valid form
+handler. Here is an example::
 
     from django import forms
     from django_drapes import verify_post
@@ -171,9 +173,15 @@ keyword arguments, corresponding to a tuple of form and handler TODO::
 
     class ThingForm(forms.Form):
         name = forms.CharField(required=True, min_length=4)
+	drape_form_name = forms.CharField(required=True,
+                                          widget=forms.HiddenInput(),
+					  initial='thing_form')
 
     class OrganismForm(forms.Form):
         genus = forms.CharField(required=True, min_length=10)
+	drape_form_name = forms.CharField(required=True,
+                                          widget=forms.HiddenInput(),
+					  initial='organism_form')
 
     def create_thing(request, form):
         Thing(name=form.data['name'])
@@ -185,10 +193,20 @@ keyword arguments, corresponding to a tuple of form and handler TODO::
                        organism_form=(OrganismsForm, create_organism))
     @require(item='can_view')
     def controller(request, item, invalid_form=None):
-    	return "Na"
+    	return render_to_response('form_template.html',
+	                          dict(form=ThingForm()))
+
+As it can be seen in this example, the hidden field
+``drape_form_name`` of a form has to match the keyword argument to
+``verify_post`` which specifies how that form should be handled.
 
 One complication for which I couldn't come up with a decent solution
-is form validation with a user. TODO
+is form validation with a user. In some cases, it is necessary to to
+initialize a form class with a user; an example is when a value has to
+be unique per user. In these cases, you have to set the keyword
+argument ``pass_user`` to ``True`` for ``verify_post.single``, and a
+three-element tuple whose last element is ``True`` to
+``verify_post.multi``. Let me know in case you have a better solution.
 
 render_with
 -----------
@@ -220,12 +238,12 @@ controller. The following is posible::
                                       get_by='slug'))
     @require(model_inst='can_view',
              user='is_authenticated')
+    @verify_post.single(ThingForm, create_thing)
     def controller(request, model_inst):
         return model_inst.message
 
 The principle here is that if a decorator depends on the conversions
-of another, it should come after it. We saw an example of this
-above. TODO.
+of another, it should come after it.
 
 Template tags
 =============
