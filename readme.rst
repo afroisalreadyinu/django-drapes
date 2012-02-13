@@ -250,9 +250,13 @@ Template tags
 
 django-drapes comes with two template tags which make it possible to
 refer to permission classes, and to render pieces of html from a
-model. These tags are if_allowed and modelview. if_allowed is a tag
-which conditionally renders content based on the outcome of a
-permission applied to a user. Let's have an example for a
+model. These tags are if_allowed and modelview.
+
+if_allowed
+----------
+
+if_allowed is a tag which conditionally renders content based on the
+outcome of a permission applied to a user. Let's have an example for a
 change. Model and permissions::
 
     from django.db import models
@@ -279,6 +283,9 @@ you can do the following::
 
 If your username is not horst, you will see 'For horst's eyes only'.
 
+modelview
+---------
+
 The other template tag is a helper called modelview. In order to
 insert markup representing an aspect of a model, you can create
 subclass ModelView, and set its class attribute model to a django
@@ -301,8 +308,8 @@ model::
 
 It is advised to use template.render here, since this way you don't
 get a response with the full HTTP headers. If you want to get the
-output of a model view, you can use the view function named just v to
-get the ModelView for a model instance::
+output of a model view outside of a template, you can use the view
+function named just ``v`` to get the ModelView for a model instance::
 
     from django_drapes import verify, ModelValidator, v
     from .models import Thing
@@ -312,6 +319,8 @@ get the ModelView for a model instance::
     def just_some_view(request, thing):
         return v(thing).some_view()
 
+Registering the template tags
+-----------------------------
 
 Since django-drapes is not organized as an app, both of these tags
 have to be manually registered to be used in templates. You can do
