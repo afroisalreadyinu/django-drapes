@@ -12,7 +12,8 @@ django-drapes. The decorators:
 - verify_post_: Validate and process POST requests
 - render_with_: Render a dictionary with a template or json
 
-There are also two template tags you can use:
+There are also two template tags which can be used in combination with
+these decorators:
 
 - if_allowed_: Display content depending on user permissions
 - modelview_: Output a model view
