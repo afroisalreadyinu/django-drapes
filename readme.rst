@@ -5,10 +5,22 @@ django-drapes
 django-drapes is a small library that aims to ease authorization and
 user input verification. Most of the functionality is packed into
 decorators intended for applying to views, hence the name
-django-drapes.
+django-drapes. The decorators:
+
+- verify_: Validate and convert values passed to a controller
+- require_: Check for permissions
+- verify_post_: Validate and process POST requests
+- render_with_: Render a dictionary with a template or json
+
+There are also two template tags you can use:
+
+- if_allowed_: Display content depending on user permissions
+- modelview_: Output a model view
 
 Decorators
 ==========
+
+.. _verify:
 
 verify
 ------
@@ -55,10 +67,12 @@ conversion, called ``ModelValidator``. It can be used as follows::
     def controller(request, item):
     	return "Item's slug is %s" % item.slug
 
+.. _require:
+
 require
 -------
 
-require checks permissions on an incoming request to a controller.
+``require`` checks permissions on an incoming request to a controller.
 Just like validate, it accepts keyword arguments with key referring
 either to user (accessed through ``request.user``) or the positional
 or keyword arguments of a view function.  Value must be a string
@@ -112,6 +126,8 @@ The only person who can view this item is the one named horst. The
 default selector used by ``ModelValidator`` is model id; this can be
 overriden using the ``get_by`` argument, as seen above.
 
+.. _verify_post:
+
 verify_post
 -----------
 
@@ -152,13 +168,13 @@ handler to call if the form validates::
     	return render_to_response('form_template.html',
 	                          dict(form=ThingForm()))
 
-Some notes on this example, which I will refer to again later. When
-you are handling single forms, the controller must have a keyword
-argument ``invalid_form``. If the form does not validate, it is passed
-on to the controller through this argument. The handler of the correct
-form, in this case ``create_thing``, must have the same signature as
-the controller, except for ``invalid_form``, which is replaced with
-``form`` in the signature of the correct handler.
+Some notes on this example. When you are handling single forms, the
+controller must have a keyword argument ``invalid_form``. If the form
+does not validate, it is passed on to the controller through this
+argument. The handler of the correct form, in this case
+``create_thing``, must have the same signature as the controller,
+except for ``invalid_form``, which is replaced with ``form`` in the
+signature of the correct handler.
 
 If you want to use the same entry point to show and validate forms of
 different kinds, you should use ``verify_post.multi``. This method
@@ -208,6 +224,8 @@ argument ``pass_user`` to ``True`` for ``verify_post.single``, and a
 three-element tuple whose last element is ``True`` to
 ``verify_post.multi``. Let me know in case you have a better solution.
 
+.. _render_with:
+
 render_with
 -----------
 
@@ -252,12 +270,14 @@ django-drapes comes with two template tags which make it possible to
 refer to permission classes, and to render pieces of html from a
 model. These tags are if_allowed and modelview.
 
+.. _if_allowed:
+
 if_allowed
 ----------
 
-if_allowed is a tag which conditionally renders content based on the
-outcome of a permission applied to a user. Let's have an example for a
-change. Model and permissions::
+``if_allowed`` is a tag which conditionally renders content based on
+the outcome of a permission applied to a user. Let's have an example
+for a change. Model and permissions::
 
     from django.db import models
     from django_drapes import ModelPermission
@@ -283,13 +303,16 @@ you can do the following::
 
 If your username is not horst, you will see 'For horst's eyes only'.
 
+.. _modelview:
+
 modelview
 ---------
 
-The other template tag is a helper called modelview. In order to
-insert markup representing an aspect of a model, you can create
-subclass ModelView, and set its class attribute model to a django
-model::
+The other template tag is a helper called ``modelview``. In order to
+insert markup representing an aspect of a model, you can subclass
+``ModelView``, and set its class attribute model to a django
+model. Attributes of this model can later be referred to in a template
+using the ``modelview`` template tag::
 
     from django.db import models
     from django.template.loader import get_template
@@ -302,14 +325,19 @@ model::
     class ThingView(ModelView):
         model = MockModel
 
-        def some_view(self):
+        def some_view(self, arg1, arg2=None):
             template = get_template('thing_some_view.html')
+            #do stuff with arg1 and arg2 ...
             return template.render(Context(dict(thing=self)))
 
 It is advised to use template.render here, since this way you don't
-get a response with the full HTTP headers. If you want to get the
-output of a model view outside of a template, you can use the view
-function named just ``v`` to get the ModelView for a model instance::
+get a response with the full HTTP headers. A nice feature of this
+template tag is that it will pass on any arguments you are calling it
+with to the view function.
+
+If you want to get the output of a model view outside of a template,
+you can use the view function named just ``v`` to get the ModelView
+for a model instance::
 
     from django_drapes import verify, ModelValidator, v
     from .models import Thing
