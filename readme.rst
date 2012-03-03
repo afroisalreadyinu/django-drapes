@@ -44,7 +44,7 @@ in the controller signature.
 
 The most frequently done conversion is selecting a model with a unique
 field. django-drapes has a built in validator for this kind of
-conversion, called ModelValidator. It can be used as follows::
+conversion, called ``ModelValidator``. It can be used as follows::
 
     from django.db import models
     from django_drapes import verify, ModelValidator
@@ -55,6 +55,24 @@ conversion, called ModelValidator. It can be used as follows::
     @verify(item=ModelValidator(get_by='slug'))
     def controller(request, item):
     	return "Item's slug is %s" % item.slug
+
+An advanced feature implemented by ``ModelValidator`` is looking up a
+model by multiple keys. In order to do this, you should initialize
+``ModelValidator`` with a list of strings as ``get_by``. These strings
+should be in the form ``model_field=view_arg``, matching arguments to
+a view to fields on a model. For example, let's assume that we have a
+project where users can create items identified by slugs. Items
+belonging to different users can have the same slug, and the page for
+such an item is identified by the name of the user and the slug of the
+item. In that case, drapes decorators can be used as follows::
+
+    @verify(owner=ModelValidator(User, get_by='username'))
+    @verify(item=ModelValidator(Project, get_by=['slug=item','owner=owner']))
+    @render_with('view_item.html')
+    def view_item(request, owner, item):
+	return dict(item=item)
+
+This case also demonstrates <chaining of drapes decorators>.
 
 require
 -------
