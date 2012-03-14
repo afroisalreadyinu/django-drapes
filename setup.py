@@ -1,12 +1,16 @@
 import os
 from setuptools import setup
 
+with open('readme.rst') as file:
+    long_description = file.read()
+
 setup(
     name = "django-drapes",
     version = "0.1",
-    author = "Afrois Alreadyinu",
+    author = "Ulas Tuerkmen",
     author_email = "afroisalreadyinu@gmail.com",
-    description = ("SOme decorators and classes to make working with django projects easier."),
+    description = ("Some decorators and classes to make working with django projects easier."),
+    long_description=long_description,
     install_requires = ['formencode',
                         'decorator',
                         'django',
