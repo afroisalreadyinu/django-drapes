@@ -356,6 +356,13 @@ class ModelPermission(ModelAttributeMixin):
     def __init__(self, obj):
         self.obj = obj
 
+    @classmethod
+    def get_for_model(cls, model):
+        perm_class = PERMISSION_REGISTER[model.__class__]
+        perm = perm_class(model)
+        return perm
+
+
 class NoSuchView(Exception):
     pass
 
@@ -417,6 +424,9 @@ def modelview(parser, token):
 
 def v(model_instance):
     return ModelView.get_for_model(model_instance)
+
+def p(model_instance):
+    return ModelPermission.get_for_model(model_instance)
 
 
 class ModelPermissionNode(Node):
