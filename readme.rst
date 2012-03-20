@@ -272,12 +272,12 @@ Mixing the decorators
 Any number of these decorators can be applied to the same
 controller. The following is posible::
 
-    @render_with('some_template.html')
     @verify(model_inst=ModelValidator(MockModel,
                                       get_by='slug'))
     @require(model_inst='can_view',
              user='is_authenticated')
     @verify_post.single(ThingForm, create_thing)
+    @render_with('some_template.html')
     def controller(request, model_inst):
         return model_inst.message
 
