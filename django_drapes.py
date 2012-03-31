@@ -26,12 +26,14 @@ class MultipleValidationErrors(Exception):
 class DomainError(Exception):
     pass
 
+NO_INSTANCE = "No instance could be found."
+MULTIPLE_INSTANCES = "Multiple entries for validator."
 
 class ModelValidator(formencode.FancyValidator):
 
     messages = dict(
-        no_instance = "No instance could be found.",
-        multiple_instances = "Multiple entries for validator."
+        no_instance = NO_INSTANCE,
+        multiple_instances = MULTIPLE_INSTANCES,
         )
 
     def __init__(self, model, get_by='id', *args, **kwargs):
