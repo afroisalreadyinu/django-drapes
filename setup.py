@@ -11,7 +11,7 @@ except IOError:
 
 setup(
     name = "django-drapes",
-    version = "0.1.1",
+    version = "0.1.2",
     author = "Ulas Tuerkmen",
     author_email = "afroisalreadyinu@gmail.com",
     description = DESC,
